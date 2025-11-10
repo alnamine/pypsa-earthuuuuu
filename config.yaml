@@ -1,0 +1,874 @@
+# SPDX-FileCopyrightText:  PyPSA-Earth and PyPSA-Eur Authors
+#
+# SPDX-License-Identifier: CC0-1.0
+
+version: 0.6.0
+tutorial: false
+
+logging:
+  level: INFO
+  format: "%(levelname)s:%(name)s:%(message)s"
+
+results_dir: results/
+summary_dir: results/
+
+foresight: overnight
+
+countries: ["DZ"]
+
+enable:
+  retrieve_databundle: false
+  retrieve_databundle_sector: false
+  retrieve_cost_data: true
+  download_osm_data: true
+  build_natura_raster: false
+  build_cutout: false
+  progress_bar: true
+
+custom_rules: []
+
+run:
+  name: ""
+  sector_name: ""
+  shared_cutouts: true
+  allow_scenario_failure: false
+
+scenario:
+  simpl: [""]
+  ll: ["copt"]
+  clusters: [20] 
+  opts: [Co2L-3h]
+  planning_horizons:
+  - 2030
+  sopts:
+  - "144h"
+  demand:
+  - "AB"
+
+snapshots:
+  start: "2024-01-01"
+  end: "2025-01-01"
+  inclusive: "left"
+
+crs:
+  geo_crs: EPSG:4326
+  distance_crs: EPSG:3857
+  area_crs: ESRI:54009
+
+augmented_line_connection:
+  add_to_snakefile: false
+  connectivity_upgrade: 2
+  new_line_type: ["HVAC"]
+  min_expansion: 1
+  min_DC_length: 600
+
+cluster_options:
+  simplify_network:
+    to_substations: false
+    algorithm: kmeans
+    feature: solar+onwind-time
+    exclude_carriers: [hydro]
+    remove_stubs: true
+    remove_stubs_across_borders: false
+    p_threshold_drop_isolated: 20
+    p_threshold_merge_isolated: 300
+    s_threshold_fetch_isolated: false
+  cluster_network:
+    algorithm: kmeans
+    feature: solar+onwind-time
+    exclude_carriers: []
+  alternative_clustering: false
+  distribute_cluster: ["load"]
+  out_logging: true
+  aggregation_strategies:
+    generators:
+      p_nom: sum
+      p_nom_max: sum
+      p_nom_min: sum
+      p_min_pu: mean
+      p_max_pu: weighted_average
+      marginal_cost: mean
+      committable: any
+      ramp_limit_up: max
+      ramp_limit_down: max
+      efficiency: mean
+
+build_shape_options:
+  gadm_layer_id: 1
+  simplify_gadm: true
+  update_file: false
+  out_logging: true
+  year: 2020
+  nprocesses: 3
+  worldpop_method: "standard"
+  gdp_method: "standard"
+  contended_flag: "set_by_country"
+
+subregion:
+  define_by_gadm: false
+  path_custom_shapes: false
+
+clean_osm_data_options:
+  names_by_shapes: true
+  threshold_voltage: 51000
+  tag_substation: "transmission"
+  add_line_endings: true
+  generator_name_method: OSM
+  use_custom_lines: "OSM_only"
+  path_custom_lines: false
+  use_custom_substations: "OSM_only"
+  path_custom_substations: false
+  use_custom_cables: "OSM_only"
+  path_custom_cables: false
+
+build_osm_network:
+  group_close_buses: true
+  group_tolerance_buses: 5000
+  split_overpassing_lines: true
+  overpassing_lines_tolerance: 1
+  force_ac: false
+
+base_network:
+  min_voltage_substation_offshore: 51000
+  min_voltage_rebase_voltage: 51000
+
+load_options:
+  ssp: "ssp2-2.6"
+  weather_year: 2024
+  prediction_year: 2030
+  scale: 1
+
+electricity:
+  base_voltage: 380.
+  voltages: [132., 220., 300., 380., 500., 750.]
+  co2limit: 7.75e+7
+  co2base: 1.487e+9
+  agg_p_nom_limits: data/agg_p_nom_minmax.csv
+  hvdc_as_lines: false
+  automatic_emission: false
+  automatic_emission_base_year: 1990
+
+  operational_reserve:
+    activate: false
+    epsilon_load: 0.02
+    epsilon_vres: 0.02
+    contingency: 0
+
+  max_hours:
+    battery: 6
+    H2: 168
+
+  extendable_carriers:
+    Generator: 
+    - solar
+    - onwind
+    StorageUnit: [] 
+    Store: []
+    Link: []
+
+  powerplants_filter: "Country == 'DZA'" # This filter is disabled
+  
+  custom_powerplants: "replace" 
+
+  conventional_carriers: [] 
+  
+  # This list now correctly contains ONLY the renewables we are building
+  renewable_carriers: [solar, onwind] 
+
+  estimate_renewable_capacities:
+    stats: "irena" 
+    year: 2023
+    p_nom_min: 1
+    p_nom_max: false
+    technology_mapping:
+      Offshore: []
+      Onshore: [onwind]
+      PV: [solar]
+
+lines:
+  ac_types:
+    132.: "243-AL1/39-ST1A 20.0"
+    220.: "Al/St 240/40 2-bundle 220.0"
+    300.: "Al/St 240/40 3-bundle 300.0"
+    380.: "Al/St 240/40 4-bundle 380.0"
+    500.: "Al/St 240/40 4-bundle 380.0"
+    750.: "Al/St 560/50 4-bundle 750.0"
+  dc_types:
+    500.: "HVDC XLPE 1000"
+  s_max_pu: 0.7
+  s_nom_max: .inf
+  length_factor: 1.25
+  under_construction: "zero"
+
+links:
+  p_max_pu: 1.0
+  p_nom_max: .inf
+  under_construction: "zero"
+
+transformers:
+  x: 0.1
+  s_nom: 2000.
+  type: ""
+
+atlite:
+  nprocesses: 6
+  cutouts:
+    six-wilayas-cutout:
+      module: era5
+      x: [4.7, 7.1]
+      y: [36.0, 37.5]
+      dx: 0.1
+      dy: 0.1
+
+renewable:
+  onwind:
+    cutout: six-wilayas-cutout
+    resource:
+      method: wind
+      turbine: Vestas_V112_3MW
+    capacity_per_sqkm: 3
+    copernicus:
+      grid_codes: [20, 30, 40, 60, 100, 111, 112, 113, 114, 115, 116, 121, 122, 123, 124, 125, 126]
+      distance: 1000
+      distance_grid_codes: [50]
+    natura: true
+    potential: simple
+    clip_p_max_pu: 1.e-2
+    extendable: true
+  offwind-ac:
+    cutout: six-wilayas-cutout
+    resource:
+      method: wind
+      turbine: NREL_ReferenceTurbine_5MW_offshore
+    capacity_per_sqkm: 2
+    copernicus:
+      grid_codes: [80, 200]
+    natura: true
+    max_depth: 50
+    max_shore_distance: 30000
+    potential: simple
+    clip_p_max_pu: 1.e-2
+    extendable: true
+  offwind-dc:
+    cutout: six-wilayas-cutout
+    resource:
+      method: wind
+      turbine: NREL_ReferenceTurbine_5MW_offshore
+    capacity_per_sqkm: 3
+    copernicus:
+      grid_codes: [80, 200]
+    natura: true
+    max_depth: 50
+    min_shore_distance: 30000
+    potential: simple
+    clip_p_max_pu: 1.e-2
+    extendable: true
+  solar:
+    cutout: six-wilayas-cutout
+    resource:
+      method: pv
+      panel: CSi
+      orientation: latitude_optimal 
+    capacity_per_sqkm: 4.6
+    correction_factor: 0.854337
+    copernicus:
+      grid_codes: [20, 30, 40, 50, 60, 90, 100] # Onshore only
+    natura: true
+    potential: simple
+    clip_p_max_pu: 1.e-2
+    extendable: true
+  
+  # --- THIS IS THE FIX ---
+  # The entire 'hydro:' block has been deleted.
+  
+  csp:
+    cutout: six-wilayas-cutout
+    resource:
+      method: csp
+      installation: SAM_solar_tower
+    capacity_per_sqkm: 2.392
+    copernicus:
+      grid_codes: [20, 30, 40, 60, 90]
+      distancing_codes: [50]
+      distance_to_codes: 3000
+    natura: true
+    potential: simple
+    clip_p_max_pu: 1.e-2
+    extendable: true
+    csp_model: advanced
+
+# Costs Configuration
+costs:
+  year: 2030
+  version: v0.12.0
+  discountrate: [0.071]
+  output_currency: "EUR"
+  default_USD_to_EUR: 0.7532
+  rooftop_share: 0.14
+  fill_values:
+    FOM: 0
+    VOM: 0
+    efficiency: 1
+    fuel: 0
+    investment: 0
+    lifetime: 25
+    CO2 intensity: 0
+    discount rate: 0.07
+  marginal_cost: # EUR/MWh
+    solar: 0.01
+    onwind: 0.015
+    offwind: 0.015
+    hydro: 0.
+    H2: 0.
+    electrolysis: 0.
+    fuel cell: 0.
+    battery: 0.
+    battery inverter: 0.
+  emission_prices: # in currency per tonne emission, only used with the option Ep
+    co2: 0.
+  lines:
+    length_factor: 1.25
+
+monte_carlo:
+  options:
+    add_to_snakefile: false
+    samples: 9
+    sampling_strategy: "chaospy"
+    seed: 42
+  uncertainties:
+    loads_t_p_set:
+      type: uniform
+      args: [0.5, 1]
+    generators_t.p_max_pu.loc[:, n.generators.carrier == "onwind"]:
+      type: lognormal
+      args: [1.5]
+    generators_t.p_max_pu.loc[:, n.generators.carrier == "solar"]:
+      type: beta
+      args: [0.5, 2]
+
+# ------------------- SECTOR OPTIONS -------------------
+
+policy_config:
+  hydrogen:
+    temporal_matching: "no_res_matching"
+    spatial_matching: false
+    additionality: false
+    allowed_excess: 1.0
+    is_reference: false
+    remove_h2_load: false
+    path_to_ref: ""
+    re_country_load: false
+
+demand_data:
+  update_data: true
+  base_year: 2019
+  other_industries: false
+  aluminium_year: 2019
+
+fossil_reserves:
+  oil: 100
+
+export:
+  endogenous: false
+  endogenous_price: 400
+  store: true
+  store_capital_costs: "no_costs"
+  h2export: [10]
+  export_profile: "ship"
+  ship:
+    ship_capacity: 0.4 
+    travel_time: 288
+    fill_time: 24
+    unload_time: 24
+
+custom_data:
+  renewables: [] 
+  elec_demand: false
+  heat_demand: false
+  industry_demand: false
+  industry_database: false
+  transport_demand: false
+  water_costs: false
+  h2_underground: false
+  add_existing: false
+  custom_sectors: false
+  gas_network: false
+  export_ports: false
+  airports: false
+
+industry:
+  reference_year: 2015
+
+solar_thermal:
+  clearsky_model: simple
+  orientation:
+    slope: 45.
+    azimuth: 180.
+
+existing_capacities:
+  grouping_years_power: [1960, 1965, 1970, 1975, 1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025, 2030]
+  grouping_years_heat: [1980, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2019]
+  threshold_capacity: 10
+  default_heating_lifetime: 20
+  conventional_carriers:
+  - lignite
+  - coal
+  - oil
+  - uranium
+
+sector:
+  enable: true  
+  gas:
+    spatial_gas: true
+    network: false
+    network_data: GGIT
+    network_data_GGIT_status: ["Construction", "Operating", "Idle", "Shelved", "Mothballed", "Proposed"]
+  hydrogen:
+    enable: true  
+    network: true
+    H2_retrofit_capacity_per_CH4: 0.6
+    network_limit: 2000 #GWkm
+    network_routes: greenfield 
+    gas_network_repurposing: true
+    underground_storage: false
+    hydrogen_colors: false
+    set_color_shares: false
+    blue_share: 0.40
+    pink_share: 0.05
+  industrial_demand: 
+    enable: true
+    green_steel_share: 1.0
+  coal:
+    spatial_coal: true
+    shift_to_elec: true
+  lignite:
+    spatial_lignite: false
+  international_bunkers: false
+  oil:
+    spatial_oil: true
+  district_heating:
+    potential: 0.3
+    progress: 1
+    district_heating_loss: 0.15
+  reduce_space_heat_exogenously: true
+  reduce_space_heat_exogenously_factor: 0.29
+  tes: true
+  tes_tau:
+    decentral: 3
+    central: 180
+  boilers: true
+  oil_boilers: false
+  chp: true
+  micro_chp: false
+  solar_thermal: true
+  heat_pump_sink_T: 55
+  time_dep_hp_cop: true
+  solar_cf_correction: 0.788457
+  bev_plug_to_wheel_efficiency: 0.2
+  bev_charge_efficiency: 0.9
+  transport_heating_deadband_upper: 20.
+  transport_heating_deadband_lower: 15.
+  ICE_lower_degree_factor: 0.375
+  ICE_upper_degree_factor: 1.6
+  EV_lower_degree_factor: 0.98
+  EV_upper_degree_factor: 0.63
+  bev_avail_max: 0.95
+  bev_avail_mean: 0.8
+  bev_dsm_restriction_value: 0.75
+  bev_dsm_restriction_time: 7
+  v2g: true
+  bev_dsm: true
+  bev_energy: 0.05
+  bev_availability: 0.5
+  transport_fuel_cell_efficiency: 0.5
+  transport_internal_combustion_efficiency: 0.3
+  industry_util_factor: 0.7
+  biomass_transport: true
+  biomass_transport_default_cost: 0.1
+  solid_biomass_potential: 40
+  biogas_potential: 0.5
+  efficiency_heat_oil_to_elec: 0.9
+  efficiency_heat_biomass_to_elec: 0.9
+  efficiency_heat_gas_to_elec: 0.9
+  electricity_distribution_grid: true
+  solar_rooftop: true
+  home_battery: true
+  transmission_efficiency:
+    electricity distribution grid:
+      efficiency_static: 0.97
+    H2 pipeline:
+      efficiency_per_1000km: 1
+      compression_per_1000km: 0.017
+  dynamic_transport:
+    enable: false
+    land_transport_electric_share:
+      Co2L2.0: 0.00
+      Co2L1.0: 0.01
+      Co2L0.90: 0.03
+      Co2L0.80: 0.06
+      Co2L0.70: 0.10
+      Co2L0.60: 0.17
+      Co2L0.50: 0.27
+      Co2L0.40: 0.40
+      Co2L0.30: 0.55
+      Co2L0.20: 0.69
+      Co2L0.10: 0.80
+      Co2L0.00: 0.88
+    land_transport_fuel_cell_share:
+      Co2L2.0: 0.01
+      Co2L1.0: 0.01
+      Co2L0.90: 0.01
+      Co2L0.80: 0.01
+      Co2L0.70: 0.01
+      Co2L0.60: 0.01
+      Co2L0.50: 0.01
+      Co2L0.40: 0.01
+      Co2L0.30: 0.01
+      Co2L0.20: 0.01
+      Co2L0.10: 0.01
+      Co2L0.00: 0.01
+  land_transport_fuel_cell_share: # 1 means all FCEVs HERE
+    BU_2030: 0.00
+    AP_2030: 0.004
+    NZ_2030: 0.02
+    DF_2030: 0.01
+    AB_2030: 0.01
+    BU_2050: 0.00
+    AP_2050: 0.06
+    NZ_2050: 0.28
+    DF_2050: 0.08
+  land_transport_electric_share: # 1 means all EVs  # This leads to problems when non-zero HERE
+    BU_2030: 0.00
+    AP_2030: 0.075
+    NZ_2030: 0.13
+    DF_2030: 0.01
+    AB_2030: 0.01
+    BU_2050: 0.00
+    AP_2050: 0.42
+    NZ_2050: 0.68
+    DF_2050: 0.011
+  co2_network: true
+  co2_sequestration_potential: 200
+  co2_sequestration_cost: 10
+  shipping_hydrogen_liquefaction: false
+  shipping_average_efficiency: 0.4
+  shipping_hydrogen_share: #1.0
+    BU_2030: 0.00
+    AP_2030: 0.00
+    NZ_2030: 0.10
+    DF_2030: 0.05
+    AB_2030: 0.05
+    BU_2050: 0.00
+    AP_2050: 0.25
+    NZ_2050: 0.36
+    DF_2050: 0.12
+  h2_cavern: true
+  marginal_cost_storage: 0
+  methanation: true
+  helmeth: true
+  dac: true
+  SMR: true
+  SMR CC: true
+  cc_fraction: 0.9
+  cc: true
+  space_heat_share: 0.6
+  airport_sizing_factor: 3
+  min_part_load_fischer_tropsch: 0.9
+  conventional_generation: # generator : carrier
+    OCGT: gas
+    oil: oil
+    coal: coal
+    lignite: lignite
+    biomass: biomass
+  keep_existing_capacities: true
+
+solving:
+  options:
+    formulation: kirchhoff
+    load_shedding: 100
+    noisy_costs: true
+    min_iterations: 4
+    max_iterations: 6
+    clip_p_max_pu: 0.01
+    skip_iterations: true
+    track_iterations: false
+    # nhours: 10
+  solver:
+    name: gurobi
+    options: gurobi-default
+  solver_options:
+    highs-default:
+      threads: 4
+      solver: "ipm"
+      run_crossover: "off"
+      small_matrix_value: 1e-6
+      large_matrix_value: 1e9
+      primal_feasibility_tolerance: 1e-5
+      dual_feasibility_tolerance: 1e-5
+      ipm_optimality_tolerance: 1e-4
+      parallel: "on"
+      random_seed: 123
+    gurobi-default:
+      threads: 4
+      method: 2 # barrier
+      crossover: 0
+      BarConvTol: 1.e-6
+      Seed: 123
+      AggFill: 0
+      PreDual: 0
+      GURO_PAR_BARDENSETHRESH: 200
+    gurobi-numeric-focus:
+      NumericFocus: 3
+      method: 2 # barrier
+      crossover: 0
+      BarHomogeneous: 1
+      BarConvTol: 1.e-5
+      FeasibilityTol: 1.e-4
+      OptimalityTol: 1.e-4
+      ObjScale: -0.5
+      threads: 8
+      Seed: 123
+    gurobi-fallback: # Use gurobi defaults
+      crossover: 0
+      method: 2 # barrier
+      BarHomogeneous: 1
+      BarConvTol: 1.e-5
+      FeasibilityTol: 1.e-5
+      OptimalityTol: 1.e-5
+      Seed: 123
+      threads: 8
+    cplex-default:
+      threads: 4
+      lpmethod: 4 # barrier
+      solutiontype: 2
+      barrier.convergetol: 1.e-5
+      feasopt.tolerance: 1.e-6
+    copt-default:
+      Threads: 8
+      LpMethod: 2
+      Crossover: 0
+    cbc-default: {} # Used in CI
+    glpk-default: {} # Used in CI
+  mem: 30000
+
+plotting:
+  map:
+    figsize: [7, 7]
+    boundaries: [-10.2, 29, 35, 72]
+    p_nom:
+      bus_size_factor: 5.e+4
+      linewidth_factor: 3.e+3
+    color_geomap:
+      ocean: white
+      land: whitesmoke
+  costs_max: 10
+  costs_threshold: 0.2
+  energy_max: 20000
+  energy_min: -20000
+  energy_threshold: 15
+  vre_techs:
+  - onwind
+  - offwind-ac
+  - offwind-dc
+  - solar
+  - ror
+  conv_techs:
+  - OCGT
+  - CCGT
+  - nuclear
+  - Nuclear
+  - coal
+  - oil
+  storage_techs:
+  - hydro+PHS
+  - battery
+  - H2
+  renewable_storage_techs:
+  - PHS
+  - hydro
+  load_carriers:
+  - AC load
+  AC_carriers:
+  - AC line
+  - AC transformer
+  link_carriers:
+  - DC line
+  - Converter AC-DC
+  heat_links:
+  - heat pump
+  - resistive heater
+  - CHP heat
+  - CHP electric
+  - gas boiler
+  - central heat pump
+  - central resistive heater
+  - central CHP heat
+  - central CHP electric
+  - central gas boiler
+  heat_generators:
+  - gas boiler
+  - central gas boiler
+  - solar thermal collector
+  - central solar thermal collector
+  tech_colors:
+    onwind: "#235ebc"
+    onshore wind: "#235ebc"
+    offwind: "#6895dd"
+    offwind-ac: "#6895dd"
+    offshore wind: "#6895dd"
+    offshore wind ac: "#6895dd"
+    offshore wind (AC): "#6895dd"
+    offwind-dc: "#74c6f2"
+    offshore wind dc: "#74c6f2"
+    offshore wind (DC): "#74c6f2"
+    wave: "#004444"
+    hydro: "#08ad97"
+    hydro+PHS: "#08ad9F"
+    PHS: "#08ad97"
+    hydro reservoir: "#08ad97"
+    hydroelectricity: "#08ad97"
+    ror: "#4adbc8"
+    run of river: "#4adbc8"
+    solar: "#f9d002"
+    solar PV: "#f9d002"
+    solar thermal: "#ffef60"
+    solar rooftop: "#ffef60"
+    biomass: "#0c6013"
+    solid biomass: "#06540d"
+    solid biomass for industry co2 from atmosphere: "#654321"
+    solid biomass for industry co2 to stored: "#654321"
+    solid biomass for industry CC: "#654321"
+    biogas: "#23932d"
+    waste: "#68896b"
+    geothermal: "#ba91b1"
+    OCGT: "#d35050"
+    OCGT marginal: "sandybrown"
+    OCGT-heat: "#ee8340"
+    CCGT: "#b80404"
+    gas: "#d35050"
+    natural gas: "#d35050"
+    gas boiler: "#ee8340"
+    gas boilers: "#ee8340"
+    gas boiler marginal: "#ee8340"
+    gas-to-power/heat: "brown"
+    SMR: "#4F4F2F"
+    SMR CC: "darkblue"
+    oil: "#262626"
+    oil boiler: "#B5A642"
+    oil emissions: "#666666"
+    gas for industry: "#333333"
+    gas for industry CC: "brown"
+    gas for industry co2 to atmosphere: "#654321"
+    gas for industry co2 to stored: "#654321"
+    nuclear: "#ff9000"
+    Nuclear: "r"
+    Nuclear marginal: "r"
+    uranium: "r"
+    coal: "#707070"
+    Coal: "k"
+    Coal marginal: "k"
+    lignite: "#9e5a01"
+    Lignite: "grey"
+    Lignite marginal: "grey"
+    H2: "#ea048a"
+    H2 for industry: "#222222"
+    H2 for shipping: "#6495ED"
+    H2 liquefaction: "m"
+    hydrogen storage: "#ea048a"
+    battery: "slategray"
+    battery discharger: "slategray"
+    battery charger: "slategray"
+    battery storage: "slategray"
+    home battery: "#614700"
+    home battery storage: "#614700"
+    lines: "#70af1d"
+    transmission lines: "#70af1d"
+    AC: "#70af1d"
+    AC-AC: "#70af1d"
+    AC line: "#70af1d"
+    links: "#8a1caf"
+    HVDC links: "#8a1caf"
+    DC: "#8a1caf"
+    DC-DC: "#8a1caf"
+    DC link: "#8a1caf"
+    load: "#ff0000"
+    load shedding: "#ff0000"
+    Electric load: "b"
+    electricity: "k"
+    electric demand: "k"
+    electricity distribution grid: "y"
+    heat: "darkred"
+    Heat load: "r"
+    heat pumps: "#76EE00"
+    heat pump: "#76EE00"
+    air heat pump: "#76EE00"
+    ground heat pump: "#40AA00"
+    CHP: "r"
+    CHP heat: "r"
+    CHP electric: "r"
+    heat demand: "darkred"
+    rural heat: "#880000"
+    central heat: "#b22222"
+    decentral heat: "#800000"
+    low-temperature heat for industry: "#991111"
+    process heat: "#FF3333"
+    power-to-heat: "red"
+    resistive heater: "pink"
+    Sabatier: "#FF1493"
+    methanation: "#FF1493"
+    power-to-gas: "purple"
+    power-to-liquid: "darkgreen"
+    helmeth: "#7D0552"
+    DAC: "deeppink"
+    co2 stored: "#123456"
+    CO2 pipeline: "gray"
+    CO2 sequestration: "#123456"
+    co2: "#123456"
+    co2 vent: "#654321"
+    process emissions: "#222222"
+    process emissions CC: "gray"
+    process emissions to stored: "#444444"
+    process emissions to atmosphere: "#888888"
+    agriculture heat: "#D07A7A"
+    agriculture machinery oil: "#1e1e1e"
+    agriculture machinery oil emissions: "#111111"
+    agriculture electricity: "#222222"
+    Fischer-Tropsch: "#44DD33"
+    kerosene for aviation: "#44BB11"
+    naphtha for industry: "#44FF55"
+    land transport oil: "#44DD33"
+    land transport oil emissions: "#666666"
+    land transport fuel cell: "#AAAAAA"
+    land transport EV: "grey"
+    V2G: "grey"
+    BEV charger: "grey"
+    shipping: "#6495ED"
+    shipping oil: "#6495ED"
+    shipping oil emissions: "#6495ED"
+    water tanks: "#BBBBBB"
+    hot water storage: "#BBBBBB"
+    hot water charging: "#BBBBBB"
+    hot water discharging: "#999999"
+    Li ion: "grey"
+    district heating: "#CC4E5C"
+    retrofitting: "purple"
+    building retrofitting: "purple"
+    solid biomass transport: "green"
+    biomass EOP: "green"
+    high-temp electrolysis: "magenta"
+    today: "#D2691E"
+    Ambient: "k"
+
+  nice_names:
+    OCGT: Open-Cycle Gas
+    CCGT: Combined-Cycle Gas
+    offwind-ac: Offshore Wind (AC)
+    offwind-dc: Offshore Wind (DC)
+    onwind: Onshore Wind
+    solar: Solar
+    PHS: Pumped Hydro Storage
+    hydro: Reservoir & Dam
+    battery: Battery Storage
+    H2: Hydrogen Storage
+    lines: Transmission Lines
+    ror: Run of River
